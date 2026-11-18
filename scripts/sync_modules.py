@@ -5,7 +5,7 @@ The app is a single HTML file so it runs with nothing to install. The modules ar
 tested as separate files, then pasted in between marker comments.
 
     python3 scripts/sync_modules.py          # paste the current modules into index.html
-    python3 scripts/sync_modules.py --check  # exit 1 if index.html is out of date (used by CI)
+    python3 scripts/sync_modules.py --check  # exit 1 if index.html is out of date
 """
 import os
 import re

@@ -6,7 +6,6 @@
 
 One small app that runs in your browser. No installs beyond Python. Windows, macOS and Linux.
 
-[![CI](https://github.com/joecodecreations/torch-bed-advanced-plasma-cutting/actions/workflows/ci.yml/badge.svg)](https://github.com/joecodecreations/torch-bed-advanced-plasma-cutting/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)

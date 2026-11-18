@@ -29,7 +29,11 @@ The geometry modules are developed and tested as separate files in `jog/tools/`,
 python3 scripts/sync_modules.py
 ```
 
-CI fails if the page and the modules disagree.
+To check that the page and the modules agree without changing anything:
+
+```bash
+python3 scripts/sync_modules.py --check
+```
 
 ## Tests
 
