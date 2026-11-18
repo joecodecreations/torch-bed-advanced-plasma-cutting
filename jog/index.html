@@ -164,6 +164,10 @@
     background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 14px; box-shadow: var(--shadow); }
   .lookpanel.open { display: block; }
   .lookpane { display: none; } .lookpane.sel { display: block; }
+  .fintable { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .fintable th, .fintable td { text-align: left; padding: 4px 6px; border-top: 1px solid var(--line-soft); }
+  .fintable th { color: var(--muted); font-weight: 600; }
+  .stats#fin-tiles { grid-template-columns: repeat(3, 1fr); }
   .pjgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-top: 12px; }
   .pjcard { display: flex; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
   .pjthumb { width: 84px; height: 84px; flex: none; background: var(--bed); border: 1px solid var(--line); border-radius: 8px; color: var(--shape); }
@@ -690,7 +694,7 @@
 <!-- assembly guide -->
 <div class="veil" id="asmveil">
   <div class="dialog" style="width:min(1100px,100%)">
-    <div class="row" style="justify-content:space-between"><h3 id="as-title">Assembly guide</h3><button id="as-close">Close</button></div>
+    <div class="row" style="justify-content:space-between"><h3 id="as-title">Assembly guide</h3><span class="row"><button id="as-finish" title="See what has to come off each side to reach the real shape, and export it for a laser or mill">Finish to shape…</button><button id="as-close">Close</button></span></div>
     <canvas id="asmcv" width="1200" height="720" style="width:100%;background:#0e0f12;border-radius:10px;margin-top:8px;cursor:grab;touch-action:none;display:block"></canvas>
     <div class="row" style="margin-top:8px;flex-wrap:nowrap">
       <button id="as-play" style="min-width:72px">Play</button><button id="as-prev" title="Back one piece">‹</button><button id="as-next" title="Forward one piece">›</button>
@@ -737,6 +741,52 @@
     <button data-lookreset="assembly" style="width:100%">Back to the defaults for the 3D views</button>
   </div>
   <p class="hint">Saved in this browser.</p>
+</div>
+
+<!-- finish to shape -->
+<div class="veil" id="finveil">
+  <div class="dialog" style="width:min(1180px,100%)">
+    <div class="row" style="justify-content:space-between"><h3 id="fin-title">Finish to shape</h3><button id="fin-close">Close</button></div>
+    <div class="hint" style="margin:2px 0 0">The welded pieces are a little bigger than the model everywhere. Lay the part with one side up, remove what the map shows, turn it and do the next side.</div>
+    <div class="tracegrid" style="grid-template-columns:minmax(0,1fr) 400px">
+      <div>
+        <canvas id="fincv" width="1000" height="720" style="background:#0e0f12"></canvas>
+        <div class="seg2" id="fin-tabs" style="display:flex;margin-top:8px"></div>
+        <p class="hint" id="fin-status" style="color:var(--warn)"></p>
+        <p class="hint" id="fin-note"></p>
+      </div>
+      <div>
+        <div class="card">
+          <h2>Sides to work from, in this order</h2>
+          <div id="fin-sides" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 10px">
+            <label class="chk"><input type="checkbox" data-side="top" checked> Top</label>
+            <label class="chk"><input type="checkbox" data-side="bottom" checked> Bottom</label>
+            <label class="chk"><input type="checkbox" data-side="front" checked> Front</label>
+            <label class="chk"><input type="checkbox" data-side="back" checked> Back</label>
+            <label class="chk"><input type="checkbox" data-side="left" checked> Left</label>
+            <label class="chk"><input type="checkbox" data-side="right" checked> Right</label>
+          </div>
+          <div class="field"><div>Deepest a side may go<small>blank = no limit. Lasers lose focus in deep, narrow cuts</small></div><div class="unit"><input type="text" id="fin-limit" placeholder="no limit" spellcheck="false"><span>mm</span></div></div>
+        </div>
+        <div class="card">
+          <h2>What it adds up to</h2>
+          <div class="stats" id="fin-tiles"></div>
+          <table class="fintable" id="fin-table"></table>
+        </div>
+        <div class="card">
+          <h2>Laser, for <span id="fin-mat"></span></h2>
+          <div class="field"><div>Depth removed per pass<small>saved with the material</small></div><div class="unit"><input type="number" id="c-laser_pass" min="0.0005" step="0.001"><span>mm</span></div></div>
+          <div class="row" style="flex-wrap:nowrap;margin:4px 0 8px"><input type="number" id="fin-calpasses" placeholder="passes run" min="1" style="flex:1"><input type="text" id="fin-caldepth" placeholder="depth measured" style="flex:1"><button id="fin-calset">Work it out</button></div>
+          <div class="field"><div>Laser speed</div><div class="unit"><input type="number" id="c-laser_speed" min="1" step="50"><span>mm/s</span></div></div>
+          <div class="field"><div>Line spacing</div><div class="unit"><input type="number" id="c-laser_hatch" min="0.002" step="0.005"><span>mm</span></div></div>
+          <button id="fin-square" style="width:100%">Save a 10 mm test square</button>
+          <p class="hint">To calibrate: engrave the test square on scrap of this metal for a set number of passes, measure how deep it went, and type both numbers above. Depth per pass drops as a pocket gets deeper, so repeat at the depth you expect to work at.</p>
+        </div>
+        <div class="row"><button id="fin-save" class="primary">Save this side's map</button><button id="fin-saveall">Save every side and notes</button></div>
+        <p class="hint">Maps are saved as images: white means leave alone, darker means go deeper. Laser software such as LightBurn and EZCAD can engrave to depth from them, and they work as a guide for milling or grinding.</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- saved drawings -->
@@ -2059,14 +2109,15 @@ function paintMark() {
   $('marklabel').textContent = n ? (n === 1 ? 'The selected shape:' : 'The ' + n + ' selected shapes:')
     : 'Click a shape on the bed to choose whether it gets cut.' + (total ? ' ' + total + ' marked "don\'t cut" (dashed grey).' : '');
 }
-const CFG_NUM = ['cut_feed', 'pierce_delay', 'end_delay', 'travel_feed', 'dry_feed'];
+const CFG_NUM = ['cut_feed', 'pierce_delay', 'end_delay', 'travel_feed', 'dry_feed', 'laser_pass', 'laser_speed', 'laser_hatch'];
 CFG_NUM.forEach(k => $('c-' + k).addEventListener('change', e => { const v = Number(e.target.value); if (isFinite(v)) post('/api/config', {[k]: v}); }));
 ['torch_on', 'torch_off'].forEach(k => $('c-' + k).addEventListener('change', e => post('/api/config', {[k]: e.target.value})));
 $('c-return_zero').addEventListener('change', e => post('/api/config', {return_zero: e.target.checked}));
 
 /* ---- materials: saved cut settings per metal and thickness ---- */
-const MAT_KEYS = ['thickness', 'kerf', 'cut_feed', 'pierce_delay', 'end_delay'];
-const matVal = (m, k) => Number(m[k] === undefined && k === 'kerf' ? 1.5 : m[k]);
+const MAT_KEYS = ['thickness', 'kerf', 'cut_feed', 'pierce_delay', 'end_delay', 'laser_pass'];
+const MAT_FALLBACK = {kerf: 1.5, laser_pass: .02};
+const matVal = (m, k) => Number(m[k] === undefined && k in MAT_FALLBACK ? MAT_FALLBACK[k] : m[k]);
 let matSig = '';
 const curMat = () => ((S.config && S.config.materials) || []).find(m => m.name === S.config.material);
 const matNow = name => { const c = S.config, m = {name}; MAT_KEYS.forEach(k => { m[k] = c[k]; }); return m; };
@@ -2754,7 +2805,8 @@ async function recoverDraft() {
     const r = await (await fetch('/api/project?name=_autosave')).json();
     if (!r.ok || !r.data) return;
     if (!shapes.length && (r.data.shapes || []).length) { adoptProject(r.data, r.data.name || ''); note('Brought back your last automatic draft.', true); }
-    else if (JSON.stringify(r.data.shapes) === JSON.stringify(shapes.map(s => s))) ASSEMBLY = r.data.assembly || null;
+    // same drawing as the one in this browser: pick its 3D assembly back up (it is too big to keep in browser storage)
+    else if (r.data.assembly && String(r.data.assembly.stamp) === store.get('plasma_asm', '')) ASSEMBLY = r.data.assembly;
     autosaveSig = JSON.stringify(shapes) + (ASSEMBLY ? ASSEMBLY.stamp : '');
     if (typeof paintAssemblyBtn === 'function') paintAssemblyBtn();
   } catch (e) {}
@@ -6692,6 +6744,140 @@ function bestPlans(model, opts) {
 }
 
 if (typeof module !== 'undefined') module.exports = { slicePlan, bestPlans };
+/* ================= finishing: material to remove per side (tools/finish.js, pasted in) ================= */
+/* Finishing: what has to be removed from the welded pieces to reach the real model, side by side.
+ *
+ * Both shapes are turned into small cubes ("voxels"). Working from one side at a time, everything
+ * that side can reach in a straight line, and that is not part of the model, is removed. The result
+ * for each side is a depth map: how deep to go at every point.
+ *
+ *   fnVoxelize(asm, mesh, maxCells) -> grid
+ *   fnCarve(grid, sides, limit)     -> { maps, excess, left, shortfall, cell }
+ */
+var FN_SIDES = {
+  // ray: axis the tool travels along, dir +1 = from the low end; u/v: axes across and up the map as you look at that side
+  top:    { ray: 2, dir: -1, u: 0, fu: false, v: 1, label: 'Top' },
+  bottom: { ray: 2, dir: 1,  u: 0, fu: true,  v: 1, label: 'Bottom' },
+  front:  { ray: 1, dir: 1,  u: 0, fu: false, v: 2, label: 'Front' },
+  back:   { ray: 1, dir: -1, u: 0, fu: true,  v: 2, label: 'Back' },
+  left:   { ray: 0, dir: 1,  u: 1, fu: true,  v: 2, label: 'Left' },
+  right:  { ray: 0, dir: -1, u: 1, fu: false, v: 2, label: 'Right' }
+};
+
+function fnVoxelize(asm, mesh, maxCells) {
+  maxCells = maxCells || 220;
+  var T = asm.thickness, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity], i, k, a;
+  // bounds of the model and of every piece
+  for (i = 0; i < mesh.length; i++) { k = i % 3; if (mesh[i] < lo[k]) lo[k] = mesh[i]; if (mesh[i] > hi[k]) hi[k] = mesh[i]; }
+  asm.pieces.forEach(function (pc) {
+    var corners = [[0, 0, 0], [pc.w, 0, 0], [0, pc.h, 0], [pc.w, pc.h, 0], [0, 0, T], [pc.w, 0, T], [0, pc.h, T], [pc.w, pc.h, T]];
+    corners.forEach(function (c) {
+      for (var j = 0; j < 3; j++) {
+        var w = pc.origin[j] + pc.u[j] * c[0] + pc.v[j] * c[1] + pc.n[j] * c[2];
+        if (w < lo[j]) lo[j] = w; if (w > hi[j]) hi[j] = w;
+      }
+    });
+  });
+  var span = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2], 1e-6), r = span / maxCells;
+  lo = lo.map(function (v) { return v - r; });                       // one empty cell all round
+  var n = [0, 1, 2].map(function (j) { return Math.max(1, Math.ceil((hi[j] - lo[j]) / r) + 1); });
+  var nx = n[0], ny = n[1], nz = n[2], total = nx * ny * nz;
+  var stack = new Uint8Array(total), model = new Uint8Array(total);
+
+  // ---- the model: for each upright column, find where the surface is crossed and fill in between
+  var cols = new Array(nx * ny), nt = Math.floor(mesh.length / 9), JIT = 1.37e-4 * r;
+  for (i = 0; i < nt; i++) {
+    var b = i * 9, x0 = mesh[b], y0 = mesh[b + 1], z0 = mesh[b + 2], x1 = mesh[b + 3], y1 = mesh[b + 4], z1 = mesh[b + 5], x2 = mesh[b + 6], y2 = mesh[b + 7], z2 = mesh[b + 8];
+    var den = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+    if (Math.abs(den) < 1e-12) continue;                              // edge-on to this direction
+    var ia = Math.max(0, Math.floor((Math.min(x0, x1, x2) - lo[0]) / r - .5)), ib = Math.min(nx - 1, Math.ceil((Math.max(x0, x1, x2) - lo[0]) / r));
+    var ja = Math.max(0, Math.floor((Math.min(y0, y1, y2) - lo[1]) / r - .5)), jb = Math.min(ny - 1, Math.ceil((Math.max(y0, y1, y2) - lo[1]) / r));
+    for (var jy = ja; jy <= jb; jy++) {
+      var py = lo[1] + (jy + .5) * r + JIT * 1.7;
+      for (var ix = ia; ix <= ib; ix++) {
+        var px = lo[0] + (ix + .5) * r + JIT;
+        var w0 = ((y1 - y2) * (px - x2) + (x2 - x1) * (py - y2)) / den, w1 = ((y2 - y0) * (px - x2) + (x0 - x2) * (py - y2)) / den, w2 = 1 - w0 - w1;
+        if (w0 < 0 || w1 < 0 || w2 < 0) continue;
+        var c = ix + nx * jy;
+        (cols[c] || (cols[c] = [])).push(w0 * z0 + w1 * z1 + w2 * z2);
+      }
+    }
+  }
+  for (var c2 = 0; c2 < cols.length; c2++) {
+    var zs = cols[c2];
+    if (!zs || zs.length < 2) continue;
+    zs.sort(function (p, q) { return p - q; });
+    for (k = 0; k + 1 < zs.length; k += 2) {
+      var ka = Math.max(0, Math.ceil((zs[k] - lo[2]) / r - .5)), kb = Math.min(nz - 1, Math.floor((zs[k + 1] - lo[2]) / r - .5));
+      for (var kz = ka; kz <= kb; kz++) model[c2 + nx * ny * kz] = 1;
+    }
+  }
+
+  // ---- the pieces: each is a flat outline with a thickness, lying along one of the three axes
+  asm.pieces.forEach(function (pc) {
+    var an = 0, au = 0, av = 0, j;
+    for (j = 1; j < 3; j++) { if (Math.abs(pc.n[j]) > Math.abs(pc.n[an])) an = j; if (Math.abs(pc.u[j]) > Math.abs(pc.u[au])) au = j; if (Math.abs(pc.v[j]) > Math.abs(pc.v[av])) av = j; }
+    var su = pc.u[au] < 0 ? -1 : 1, sv = pc.v[av] < 0 ? -1 : 1, sn = pc.n[an] < 0 ? -1 : 1;
+    var s0 = pc.origin[an], s1 = s0 + sn * T, sl = Math.min(s0, s1), sh = Math.max(s0, s1);
+    var la = Math.max(0, Math.ceil((sl - lo[an]) / r - .5)), lb = Math.min(n[an] - 1, Math.floor((sh - lo[an]) / r - .5 - 1e-9));
+    if (lb < la) lb = la = Math.min(n[an] - 1, Math.max(0, Math.round(((sl + sh) / 2 - lo[an]) / r - .5)));   // thinner than a cell: still one layer
+    var step = [1, nx, nx * ny];
+    var v0 = pc.origin[av], v1 = v0 + sv * pc.h, ra = Math.max(0, Math.floor((Math.min(v0, v1) - lo[av]) / r)), rb = Math.min(n[av] - 1, Math.ceil((Math.max(v0, v1) - lo[av]) / r));
+    for (var jv = ra; jv <= rb; jv++) {
+      var q = ((lo[av] + (jv + .5) * r) - v0) * sv + 1.1e-5 * r, xs = [];
+      pc.loops.forEach(function (lp) {
+        for (var e = 0; e < lp.length; e++) {
+          var p1 = lp[e], p2 = lp[(e + 1) % lp.length];
+          if ((p1[1] > q) !== (p2[1] > q)) xs.push(p1[0] + (q - p1[1]) / (p2[1] - p1[1]) * (p2[0] - p1[0]));
+        }
+      });
+      xs.sort(function (p, q2) { return p - q2; });
+      for (var e2 = 0; e2 + 1 < xs.length; e2 += 2) {
+        var wa = pc.origin[au] + su * xs[e2], wb = pc.origin[au] + su * xs[e2 + 1], wl = Math.min(wa, wb), wh = Math.max(wa, wb);
+        var ca = Math.max(0, Math.ceil((wl - lo[au]) / r - .5)), cb = Math.min(n[au] - 1, Math.floor((wh - lo[au]) / r - .5));
+        for (var cu = ca; cu <= cb; cu++) for (var ln = la; ln <= lb; ln++) stack[cu * step[au] + jv * step[av] + ln * step[an]] = 1;
+      }
+    }
+  });
+  return { n: n, r: r, lo: lo, stack: stack, model: model };
+}
+
+// limit (optional, mm): the deepest a side may go below the first metal it meets, for tools that cannot reach far
+function fnCarve(grid, sides, limit) {
+  var maxSteps = limit > 0 ? Math.max(1, Math.round(limit / grid.r)) : Infinity;
+  var n = grid.n, r = grid.r, nx = n[0], ny = n[1], step = [1, nx, nx * ny], total = nx * ny * n[2];
+  var cur = new Uint8Array(grid.stack), model = grid.model, i, excess = 0, shortfall = 0, stackCount = 0;
+  for (i = 0; i < total; i++) { if (cur[i]) { stackCount++; if (!model[i]) excess++; } else if (model[i]) shortfall++; }
+  var maps = sides.map(function (name) {
+    var S = FN_SIDES[name], w = n[S.u], h = n[S.v], len = n[S.ray];
+    var depth = new Float32Array(w * h), through = new Uint8Array(w * h), solid = new Uint8Array(w * h), removed = 0, maxDepth = 0;
+    for (var j = 0; j < h; j++) {
+      var iv = h - 1 - j;                                             // row 0 of the map is the top
+      for (var x = 0; x < w; x++) {
+        var iu = S.fu ? w - 1 - x : x, base = iu * step[S.u] + iv * step[S.v], first = -1, last = -1, hitModel = false;
+        for (var t = 0; t < len; t++) {
+          var k = S.dir > 0 ? t : len - 1 - t, idx = base + k * step[S.ray];
+          if (model[idx]) { hitModel = true; if (first < 0 && cur[idx]) solid[x + w * j] = 1; break; }
+          if (first >= 0 && t - first >= maxSteps) break;              // as deep as this side is allowed to go
+          if (cur[idx]) { if (first < 0) first = t; last = t; cur[idx] = 0; removed++; }
+        }
+        if (first >= 0) {
+          var d = (last - first + 1) * r;
+          depth[x + w * j] = d; solid[x + w * j] = 1;
+          if (!hitModel) through[x + w * j] = 1;
+          if (d > maxDepth) maxDepth = d;
+        }
+      }
+    }
+    return { side: name, label: S.label, w: w, h: h, depth: depth, through: through, solid: solid, removed: removed, volume: removed * r * r * r, maxDepth: maxDepth };
+  });
+  var left = 0;
+  for (i = 0; i < total; i++) if (cur[i] && !model[i]) left++;
+  var v = r * r * r;
+  return { maps: maps, cell: r, excess: excess * v, left: left * v, shortfall: shortfall * v, stackVolume: stackCount * v };
+}
+
+if (typeof module !== 'undefined') module.exports = { fnVoxelize, fnCarve, FN_SIDES };
 /* ================= assembly viewer: explode, and put together piece by piece ================= */
 // asm = {thickness, size:[w,d,h], pieces:[{name, loops, w, h, origin, u, v, n}]} in assembly order.
 function asmViewer(cv, ui) {
@@ -6865,15 +7051,175 @@ function asmFromPlan(plan) {
     pieces: plan.pieces.map(p => ({name: p.name, w: r(p.w), h: r(p.h), loops: p.loops.map(l => l.map(q => [r(q[0]), r(q[1])])), origin: p.origin.map(r), u: p.u, v: p.v, n: p.n}))};
 }
 const asmGuide = asmViewer($('asmcv'), {play: $('as-play'), time: $('as-time'), explode: $('as-explode'), label: $('as-label'), prev: $('as-prev'), next: $('as-next'), speed: $('as-speed'), ghost: $('as-ghost'), ghostRow: $('as-ghostrow')});
-function paintAssemblyBtn() { $('asmbtn').style.display = ASSEMBLY && ASSEMBLY.pieces && ASSEMBLY.pieces.length ? '' : 'none'; }
+function paintAssemblyBtn() {
+  const has = ASSEMBLY && ASSEMBLY.pieces && ASSEMBLY.pieces.length;
+  $('asmbtn').style.display = has ? '' : 'none';
+  if (has) store.set('plasma_asm', String(ASSEMBLY.stamp));
+}
 $('asmbtn').onclick = () => {
   if (!ASSEMBLY) return;
   $('asmveil').classList.add('open');
   $('as-title').textContent = 'Assembly guide: ' + ASSEMBLY.pieces.length + ' pieces of ' + tidy(ASSEMBLY.thickness) + ' mm';
-  asmGuide.setMesh(ASSEMBLY.mesh ? Float32Array.from(ASSEMBLY.mesh) : null, ASSEMBLY.size);
+  asmGuide.setMesh(asmMeshOf(ASSEMBLY), ASSEMBLY.size);
+  $('as-finish').style.display = asmMeshOf(ASSEMBLY) ? '' : 'none';
   asmGuide.set(ASSEMBLY); asmGuide.V.t = 0; asmGuide.sync(); asmGuide.draw();
 };
 $('as-close').onclick = () => { asmGuide.play(false); $('asmveil').classList.remove('open'); };
+
+/* ================= finish to shape: what to remove from each side ================= */
+function f32ToB64(arr) {
+  const u8 = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
+  let s = '';
+  for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function asmMeshOf(asm) {
+  if (!asm) return null;
+  if (asm._mesh) return asm._mesh;
+  let m = null;
+  try {
+    if (asm.meshB64) { const bin = atob(asm.meshB64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); m = new Float32Array(u8.buffer); }
+    else if (asm.mesh) m = Float32Array.from(asm.mesh);
+  } catch (e) { m = null; }
+  if (m) Object.defineProperty(asm, '_mesh', {value: m, enumerable: false, configurable: true});
+  return m;
+}
+const FIN = {grid: null, stamp: 0, res: null, view: null, busy: false};
+const FIN_ORDER = ['top', 'bottom', 'front', 'back', 'left', 'right'];
+const finSides = () => FIN_ORDER.filter(s => document.querySelector('#fin-sides [data-side="' + s + '"]').checked);
+const finLaser = () => ({pass: Math.max(.0005, Number(S.config.laser_pass) || .02), speed: Math.max(1, Number(S.config.laser_speed) || 1000), hatch: Math.max(.002, Number(S.config.laser_hatch) || .03)});
+const finTime = s => s < 90 ? Math.round(s) + ' s' : s < 5400 ? Math.round(s / 60) + ' min' : (s / 3600).toFixed(s < 36000 ? 1 : 0) + ' h';
+function finOpen() {
+  const mesh = asmMeshOf(ASSEMBLY);
+  if (!ASSEMBLY || !mesh) return note('The original 3D model is not stored with this drawing, so there is nothing to compare against. Slice the model again to use this.');
+  $('finveil').classList.add('open');
+  $('fin-title').textContent = 'Finish to shape: ' + ASSEMBLY.pieces.length + ' welded pieces against the model';
+  $('fin-mat').textContent = S.config.material || 'custom settings';
+  finCompute(true);
+}
+function finCompute(rebuild) {
+  if (FIN.busy) return;
+  FIN.busy = true;
+  $('fin-status').textContent = 'Working it out…';
+  setTimeout(() => {
+    try {
+      if (rebuild || !FIN.grid || FIN.stamp !== ASSEMBLY.stamp) { FIN.grid = fnVoxelize(ASSEMBLY, asmMeshOf(ASSEMBLY), 220); FIN.stamp = ASSEMBLY.stamp; }
+      const sides = finSides();
+      const lim = parseLen($('fin-limit').value);
+      FIN.res = fnCarve(FIN.grid, sides, lim > 0 ? lim : 0);
+      if (!sides.includes(FIN.view)) FIN.view = sides[0] || null;
+      $('fin-status').textContent = '';
+    } catch (err) { FIN.res = null; $('fin-status').textContent = 'Could not work it out: ' + err.message; }
+    FIN.busy = false;
+    finPaint();
+  }, 30);
+}
+function finPaint() {
+  const res = FIN.res, cv = $('fincv'), g = cv.getContext('2d');
+  g.fillStyle = '#0e0f12'; g.fillRect(0, 0, cv.width, cv.height);
+  $('fin-tabs').innerHTML = '';
+  if (!res) return;
+  const L = finLaser(), cm3 = v => (v / 1000).toFixed(v < 10000 ? 1 : 0) + ' cm³';
+  const done = res.excess - res.left, pct = res.excess > 0 ? Math.round(100 * done / res.excess) : 100;
+  $('fin-tiles').innerHTML = '<div><b>' + cm3(res.excess) + '</b><span>extra metal on the part</span></div><div><b>' + cm3(done) + '</b><span>these sides can remove</span></div>'
+    + '<div' + (res.left > res.excess * .05 ? ' style="outline:1px solid var(--warn)"' : '') + '><b>' + (100 - pct) + '%</b><span>left that no chosen side can reach</span></div>';
+  let total = 0;
+  const rows = res.maps.map(m => {
+    let passes = 0, maxP = 0;
+    for (let i = 0; i < m.depth.length; i++) if (m.depth[i] > 0) { const p = Math.ceil(m.depth[i] / L.pass - 1e-9); passes += p; if (p > maxP) maxP = p; }
+    const secs = passes * res.cell * res.cell / (L.speed * L.hatch);
+    total += secs; m.maxPasses = maxP; m.secs = secs;
+    return '<tr><td>' + m.label + '</td><td>' + m.maxDepth.toFixed(1) + ' mm</td><td>' + cm3(m.volume) + '</td><td>' + maxP.toLocaleString() + '</td><td>' + finTime(secs) + '</td></tr>';
+  }).join('');
+  $('fin-table').innerHTML = rows ? '<tr><th>Side</th><th>Deepest</th><th>Volume</th><th>Most passes</th><th>Laser time</th></tr>' + rows
+    + '<tr><th colspan="4" style="text-align:right">All chosen sides</th><th>' + finTime(total) + '</th></tr>' : '<tr><td>Tick at least one side.</td></tr>';
+  $('fin-note').textContent = 'Worked out on a grid of ' + res.cell.toFixed(2) + ' mm squares, in the order the sides are listed: each side only gets what the ones before it left.'
+    + (res.shortfall > res.stackVolume * .01 ? ' Warning: about ' + cm3(res.shortfall) + ' of the model sticks out beyond the metal (a shortfall).' : '');
+  $('fin-tabs').innerHTML = res.maps.map(m => '<button data-view="' + m.side + '"' + (m.side === FIN.view ? ' class="sel"' : '') + ' style="flex:1">' + m.label + '</button>').join('');
+  const m = res.maps.find(x => x.side === FIN.view);
+  $('fin-save').disabled = !m; $('fin-saveall').disabled = !res.maps.length;
+  if (!m) return;
+  const img = finImage(m, false), k = Math.max(1, Math.floor(Math.min((cv.width - 20) / m.w, (cv.height - 60) / m.h)));
+  g.imageSmoothingEnabled = false;
+  const ox = Math.round((cv.width - m.w * k) / 2), oy = Math.round((cv.height - 40 - m.h * k) / 2);
+  g.drawImage(img, ox, oy, m.w * k, m.h * k);
+  // legend
+  const lx = 20, ly = cv.height - 30, lw = Math.min(420, cv.width - 300);
+  const gr = g.createLinearGradient(lx, 0, lx + lw, 0);
+  [[0, '#2563eb'], [.5, '#facc15'], [1, '#dc2626']].forEach(([o, c]) => gr.addColorStop(o, c));
+  g.fillStyle = gr; g.fillRect(lx, ly, lw, 12);
+  g.fillStyle = '#f1f0ec'; g.font = '13px -apple-system, Segoe UI, sans-serif'; g.textBaseline = 'bottom';
+  g.textAlign = 'left'; g.fillText('a little', lx, ly - 4);
+  g.textAlign = 'right'; g.fillText(m.maxDepth.toFixed(1) + ' mm deep', lx + lw, ly - 4);
+  g.textAlign = 'left'; g.textBaseline = 'top';
+  g.fillStyle = '#6b7280'; g.fillRect(lx + lw + 24, ly, 12, 12); g.fillStyle = '#f1f0ec'; g.fillText('leave alone', lx + lw + 42, ly - 1);
+  g.fillStyle = '#d946ef'; g.fillRect(lx + lw + 130, ly, 12, 12); g.fillStyle = '#f1f0ec'; g.fillText('cut right through', lx + lw + 148, ly - 1);
+  g.fillStyle = '#a09d96'; g.textAlign = 'right'; g.textBaseline = 'top';
+  g.fillText(m.label + ' side, as you look at it: ' + (m.w * res.cell).toFixed(0) + ' × ' + (m.h * res.cell).toFixed(0) + ' mm', cv.width - 16, 12);
+}
+// One side's map as a small canvas: colours for the screen, or greys for a laser (white = leave, black = deepest).
+function finImage(m, grey) {
+  const c = document.createElement('canvas'); c.width = m.w; c.height = m.h;
+  const x = c.getContext('2d'), im = x.createImageData(m.w, m.h), d = im.data, mx = Math.max(m.maxDepth, 1e-9);
+  for (let i = 0; i < m.depth.length; i++) {
+    let r = 255, gg = 255, b = 255, a = 255;
+    const t = m.depth[i] / mx;
+    if (grey) { const v = m.depth[i] > 0 ? Math.round(255 * (1 - t)) : 255; r = gg = b = m.through[i] ? 0 : v; }
+    else if (!m.solid[i]) { a = 0; }
+    else if (m.through[i]) { r = 217; gg = 70; b = 239; }
+    else if (!(m.depth[i] > 0)) { r = 107; gg = 114; b = 128; }
+    else if (t < .5) { const k = t * 2; r = 37 + (250 - 37) * k; gg = 99 + (204 - 99) * k; b = 235 + (21 - 235) * k; }
+    else { const k = (t - .5) * 2; r = 250 + (220 - 250) * k; gg = 204 + (38 - 204) * k; b = 21 + (38 - 21) * k; }
+    d[i * 4] = r; d[i * 4 + 1] = gg; d[i * 4 + 2] = b; d[i * 4 + 3] = a;
+  }
+  x.putImageData(im, 0, 0);
+  return c;
+}
+function finDownload(name, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function finSaveSide(m) {
+  const res = FIN.res, src = finImage(m, true), k = 4;                 // 4 pixels per square keeps edges crisp when the laser software scales it
+  const c = document.createElement('canvas'); c.width = m.w * k; c.height = m.h * k;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(src, 0, 0, c.width, c.height);
+  const name = 'torchbed-' + m.side + '-' + (m.w * res.cell).toFixed(1) + 'x' + (m.h * res.cell).toFixed(1) + 'mm-deepest-' + m.maxDepth.toFixed(2) + 'mm.png';
+  return new Promise(done => c.toBlob(b => { finDownload(name, b); done(name); }, 'image/png'));
+}
+function finNotes() {
+  const res = FIN.res, L = finLaser();
+  const lines = ['TorchBed finishing maps', '', 'Each PNG is one side of the welded part, seen as you look straight at that side.',
+    'White = leave alone. Darker = remove more. Black = the deepest cut for that side (or right through).',
+    'Set the image to the size given below in your laser software; the edge of the image is the edge of the part plus one grid square.',
+    'Run the sides in this order. Each map assumes the sides before it are already done.', '',
+    'Material: ' + (S.config.material || 'custom') + '   depth per pass: ' + L.pass + ' mm   speed: ' + L.speed + ' mm/s   line spacing: ' + L.hatch + ' mm', ''];
+  res.maps.forEach((m, i) => lines.push((i + 1) + '. ' + m.label + ': image size ' + (m.w * res.cell).toFixed(1) + ' x ' + (m.h * res.cell).toFixed(1) + ' mm, deepest ' + m.maxDepth.toFixed(2)
+    + ' mm = ' + m.maxPasses + ' passes at black, about ' + finTime(m.secs) + ', removes ' + (m.volume / 1000).toFixed(1) + ' cm3'));
+  lines.push('', 'Extra metal on the part: ' + (res.excess / 1000).toFixed(1) + ' cm3. Left that no chosen side can reach: ' + (res.left / 1000).toFixed(1) + ' cm3.',
+    'Grid: ' + res.cell.toFixed(3) + ' mm squares. Depth per pass usually falls as a pocket gets deeper, so check depth as you go.');
+  return lines.join('\n');
+}
+$('fin-sides').addEventListener('change', () => finCompute(false));
+$('fin-limit').addEventListener('change', e => { e.target.blur(); finCompute(false); });
+$('fin-tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { FIN.view = b.dataset.view; finPaint(); } });
+$('fin-close').onclick = () => $('finveil').classList.remove('open');
+$('fin-save').onclick = () => { const m = FIN.res && FIN.res.maps.find(x => x.side === FIN.view); if (m) finSaveSide(m); };
+$('fin-saveall').onclick = async () => {
+  if (!FIN.res) return;
+  for (const m of FIN.res.maps) { await finSaveSide(m); await new Promise(r => setTimeout(r, 350)); }
+  finDownload('torchbed-finishing-notes.txt', new Blob([finNotes()], {type: 'text/plain'}));
+};
+$('fin-calset').onclick = () => {
+  const n = Number($('fin-calpasses').value), d = parseLen($('fin-caldepth').value);
+  if (!(n > 0 && d > 0)) return note('Type how many passes you ran and the depth you measured.');
+  const per = d / n;
+  post('/api/config', {laser_pass: per}).then(r => { if (r.ok) { note('Depth per pass set to ' + per.toFixed(4) + ' mm. Press "Save to this material" on the Cut tab to keep it for ' + (S.config.material || 'this material') + '.', true); setTimeout(finPaint, 500); } else note(r.error); });
+};
+$('fin-square').onclick = () => finDownload('torchbed-laser-test-square-10mm.svg', new Blob(['<svg xmlns="http://www.w3.org/2000/svg" width="10mm" height="10mm" viewBox="0 0 10 10"><rect width="10" height="10" fill="#000"/></svg>'], {type: 'image/svg+xml'}));
+['laser_pass', 'laser_speed', 'laser_hatch'].forEach(k => $('c-' + k).addEventListener('change', () => setTimeout(finPaint, 500)));
+$('as-finish').onclick = () => { asmGuide.play(false); $('asmveil').classList.remove('open'); finOpen(); };
 
 /* ================= 3D model -> flat pieces ================= */
 const M3 = {model: null, name: '', base: [1, 1, 1], size: [1, 1, 1], mode: 'stack', axes: ['z'], plan: null, nest: null, timer: 0};
@@ -7026,7 +7372,8 @@ $('m3-add').onclick = () => {
   }));
   ASSEMBLY = asmFromPlan(M3.plan);
   // keep the model with the drawing when it is small enough, so the guide can show it later
-  if (M3.mesh && M3.mesh.length / 9 <= 12000) ASSEMBLY.mesh = Array.from(M3.mesh, v => Math.round(v * 100) / 100);
+  if (M3.mesh && M3.mesh.length / 9 <= 80000) ASSEMBLY.meshB64 = f32ToB64(M3.mesh);
+  if (M3.mesh) Object.defineProperty(ASSEMBLY, '_mesh', {value: M3.mesh, enumerable: false, configurable: true});
   // cut with the metal that was chosen here
   const m = (S.config.materials || []).find(x => x.name === $('m3-mat').value);
   if (m) { const body = {material: m.name}; MAT_KEYS.forEach(k => { body[k] = matVal(m, k); }); post('/api/config', body); }

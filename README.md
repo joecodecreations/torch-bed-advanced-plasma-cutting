@@ -50,6 +50,18 @@ This is the part that makes TorchBed different. Load a 3D model, pick your metal
 
 <img src="docs/images/3d-panels-on-sheets.jpg" alt="Numbered panels nested on sheet 2 of 5" width="900">
 
+### Finish to shape
+
+Stacked panels leave steps. Because TorchBed has both the welded shape and the true model, it can show exactly what has to come off, one side at a time: lay the part with a side up, remove what the map shows, turn it, repeat.
+
+<img src="docs/images/finish-to-shape.jpg" alt="Depth map of material to remove from the top of a stacked vase, with per-side volumes and laser time" width="900">
+
+- A colour **depth map** for each side, plus how much volume each side can reach and what no side can.
+- **Exports** as greyscale images that depth-engraving laser software reads, with notes on size, order and passes. They also work as a guide for milling or grinding.
+- **Per-material laser calibration**: engrave a test square, measure the depth, and TorchBed turns depths into pass counts and time estimates.
+
+More in the [finishing guide](docs/finishing.md).
+
 ### 3D file types
 
 | Read directly in the app | Opened through [Blender](https://www.blender.org/) if it is installed | Not readable |
@@ -126,6 +138,7 @@ The software is provided as is, with no warranty. See [LICENSE](LICENSE).
 
 - [Getting started](docs/getting-started.md)
 - [3D slicing guide](docs/3d-slicing.md)
+- [Finishing to shape with a laser or mill](docs/finishing.md)
 - [Wiring and boards](docs/wiring.md)
 - [Firmware and flashing](docs/firmware.md)
 - [Development, tests and the simulators](docs/development.md)

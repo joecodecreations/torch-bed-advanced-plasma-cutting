@@ -65,6 +65,19 @@ Making something
   - Each piece shows its number on the bed. After cutting, "Assembly" in the
     toolbar replays how they go together.
 
+Finishing to shape
+  - Open Assembly, then "Finish to shape". It compares the welded pieces
+    with the real model and shows, for each side you lay facing up, how deep
+    to remove material at every point.
+  - Tick the sides you can work from. They are done in the order listed, and
+    each side only gets what the earlier ones left. "Deepest a side may go"
+    limits how far down a side reaches.
+  - Laser: type the depth your laser removes per pass for this metal, or
+    engrave the 10 mm test square for a set number of passes, measure it, and
+    press "Work it out". The table then shows passes and time per side.
+  - "Save every side and notes" writes one image per side (white = leave,
+    darker = deeper) plus a text file with sizes, order and pass counts.
+
 Saving
   - File > Save keeps the drawing, every sheet, the cut order and the 3D
     assembly in the "projects" folder next to the app. File > Open shows them

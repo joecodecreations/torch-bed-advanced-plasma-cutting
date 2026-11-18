@@ -398,7 +398,10 @@ DEFAULT_MATERIALS = [
     {"name": "Stainless steel 3 mm", "kerf": 1.5, "thickness": 3.0, "cut_feed": 1800, "pierce_delay": 0.5, "end_delay": 0.2},
     {"name": "Aluminium 3 mm", "kerf": 1.6, "thickness": 3.0, "cut_feed": 2400, "pierce_delay": 0.4, "end_delay": 0.2},
 ]
-MATERIAL_LIMITS = {"kerf": (0.1, 10), "thickness": (0.1, 100), "cut_feed": (10, 20000), "pierce_delay": (0, 10), "end_delay": (0, 10)}
+MATERIAL_LIMITS = {"kerf": (0.1, 10), "laser_pass": (0.0005, 5), "thickness": (0.1, 100), "cut_feed": (10, 20000), "pierce_delay": (0, 10), "end_delay": (0, 10)}
+
+
+MATERIAL_OPTIONAL = {"kerf": 1.5, "laser_pass": 0.02}      # laser_pass: mm a finishing laser removes per pass
 
 
 def clean_materials(raw):
@@ -415,7 +418,7 @@ def clean_materials(raw):
         item = {"name": name}
         try:
             for k, (lo, hi) in MATERIAL_LIMITS.items():
-                v = float(m.get(k, 1.5) if k == "kerf" else m.get(k))   # older saves have no kerf
+                v = float(m.get(k, MATERIAL_OPTIONAL[k]) if k in MATERIAL_OPTIONAL else m.get(k))   # older saves lack these
                 if not math.isfinite(v):
                     raise ValueError
                 item[k] = max(lo, min(v, hi))
@@ -436,6 +439,8 @@ def load_config():
            "torch_on": "M8", "torch_off": "M9", "return_zero": True,
            "board": "uno-cnc-shield-v3",
            "thickness": 3.0, "kerf": 1.5, "material": "Mild steel 3 mm",
+           # finishing laser: depth per pass is saved with each material, the other two are the laser's own
+           "laser_pass": 0.02, "laser_speed": 1000, "laser_hatch": 0.03,
            "materials": [dict(m) for m in DEFAULT_MATERIALS]}
     try:
         with open(CONFIG_PATH) as f:
@@ -447,6 +452,8 @@ def load_config():
     for m in cfg.get("materials") or []:
         if isinstance(m, dict) and "kerf" not in m:
             m["kerf"] = stock.get(m.get("name"), 1.5)
+        if isinstance(m, dict) and "laser_pass" not in m:
+            m["laser_pass"] = 0.02
     return cfg
 
 
@@ -1352,7 +1359,8 @@ class Handler(BaseHTTPRequestHandler):
                     except (TypeError, ValueError):
                         pass
             for k, lo, hi in (("cut_feed", 10, 20000), ("travel_feed", 10, 20000), ("dry_feed", 10, 20000),
-                              ("pierce_delay", 0, 10), ("end_delay", 0, 10), ("thickness", 0.1, 100), ("kerf", 0.1, 10)):
+                              ("pierce_delay", 0, 10), ("end_delay", 0, 10), ("thickness", 0.1, 100), ("kerf", 0.1, 10),
+                              ("laser_pass", 0.0005, 5), ("laser_speed", 1, 50000), ("laser_hatch", 0.002, 2)):
                 if k in body:
                     try:
                         v = float(body[k])

@@ -13,6 +13,7 @@ jog/
     slicer.js      STL/OBJ parsing, mesh slicing, sheet nesting
     formats.js     GLB/glTF, 3MF, PLY, OFF, AMF, 3D DXF readers
     slicer2.js     never-undersize slicing, interlocking grids, plan ranking
+    finish.js      material to remove per side (finishing depth maps)
     blender_to_stl.py  run inside Blender to convert .blend, FBX, USD...
     fake_grbl.py       simulated GRBL controller
     fake_bootloader.py simulated Arduino bootloader
@@ -51,6 +52,10 @@ node tests/slicer2.test.js
 
 ```bash
 node tests/formats.test.js
+```
+
+```bash
+node tests/finish.test.js
 ```
 
 ```bash

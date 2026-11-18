@@ -13,7 +13,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAGE = os.path.join(ROOT, "jog", "index.html")
-MODULES = ["boolops.js", "slicer.js", "formats.js", "slicer2.js"]
+MODULES = ["boolops.js", "slicer.js", "formats.js", "slicer2.js", "finish.js"]
 BANNER = re.compile(r"^/\* =+ [^\n]*\(tools/(%s), pasted in\) =+ \*/\n" % "|".join(re.escape(m) for m in MODULES), re.M)
 NEXT = re.compile(r"^/\* =+ ", re.M)
 
