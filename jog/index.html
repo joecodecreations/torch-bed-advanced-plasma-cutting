@@ -537,6 +537,11 @@
           <label class="chk"><input type="checkbox" id="flip_y"> Up and down are reversed</label>
         </div>
         <div class="card">
+          <h2>The app</h2>
+          <button id="restartapp" style="width:100%">Restart the app</button>
+          <p class="hint">Stops and starts TorchBed itself, which also restarts the controller. Use it after an update, or if something is stuck. Your drawing and settings are kept, but zero has to be set again afterwards.</p>
+        </div>
+        <div class="card">
           <h2>Controller messages</h2>
           <div class="log" id="log" aria-live="polite"></div>
           <form class="cmd" id="cmdform">
@@ -2235,6 +2240,22 @@ let refit = false;
 document.querySelectorAll('[data-corner]').forEach(b => b.addEventListener('click', () =>
   post('/api/corner', {which: b.dataset.corner}).then(r => { if (r.ok) { note(b.dataset.name + ' corner set to where the torch is now.' + (r.note ? ' ' + r.note : ''), true); refit = true; } else note(r.error); })));
 $('clearlimits').onclick = () => post('/api/clearlimits').then(tell);
+$('restartapp').onclick = async () => {
+  if (busy()) return note('A program is running. Press STOP first.');
+  const b = $('restartapp');
+  if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Press again to restart'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Restart the app'; }, 4000); return; }
+  b.dataset.sure = ''; b.disabled = true; b.textContent = 'Restarting…';
+  const r = await post('/api/restart');
+  if (!r.ok) { b.disabled = false; b.textContent = 'Restart the app'; return note(r.error); }
+  // wait for it to go away and come back, then load the page afresh so any update is picked up
+  await new Promise(res => setTimeout(res, 1500));
+  for (let i = 0; i < 40; i++) {
+    try { const s2 = await (await fetch('/api/state', {cache: 'no-store'})).json(); if (s2) { location.reload(); return; } } catch (e) {}
+    await new Promise(res => setTimeout(res, 500));
+  }
+  b.disabled = false; b.textContent = 'Restart the app';
+  note('The app did not come back. Start it again by hand (start.command on Mac, start.bat on Windows).');
+};
 $('freetravel').onclick = () => post('/api/freetravel', {on: !freeOn});
 $('stop').onclick = stopAll;
 $('stop2').onclick = stopAll;

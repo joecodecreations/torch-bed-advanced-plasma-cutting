@@ -1332,6 +1332,13 @@ class Handler(BaseHTTPRequestHandler):
                 os.remove(fp)
             except (OSError, TypeError):
                 err = "That project could not be removed"
+        elif path == "/api/restart":
+            err = g.busy()
+            if not err and g.state.startswith(("Run", "Jog", "Hold")):
+                err = "Stop the machine first"
+            if not err:
+                g.say("Restarting the app")
+                threading.Timer(0.4, restart_app).start()
         elif path == "/api/settings/refresh":
             err = g.refresh_settings()
         elif path == "/api/setting":
@@ -1414,12 +1421,34 @@ class Handler(BaseHTTPRequestHandler):
         self.reply({"ok": err is None, "error": err})
 
 
+def restart_app():
+    """Start this program afresh, with the same options, in place of the running one."""
+    try:
+        GRBL.flashing = True            # stop the reader reopening the port while we go
+        GRBL.disconnect("restarting")
+    except Exception:
+        pass
+    args = [sys.executable] + sys.argv
+    if WINDOWS:                         # Windows cannot replace a running program: start the new one, then leave
+        subprocess.Popen(args, cwd=HERE)
+        os._exit(0)
+    os.execv(sys.executable, args)
+
+
 def main():
     global GRBL
     GRBL = Grbl(sys.argv[1] if len(sys.argv) > 1 else None)
     threading.Thread(target=GRBL.reader, daemon=True).start()
     threading.Thread(target=GRBL.poller, daemon=True).start()
-    srv = ThreadingHTTPServer(("127.0.0.1", HTTP_PORT), Handler)
+    srv = None
+    for attempt in range(20):           # after a restart the old copy may still be letting go of the port
+        try:
+            srv = ThreadingHTTPServer(("127.0.0.1", HTTP_PORT), Handler)
+            break
+        except OSError:
+            if attempt == 19:
+                raise
+            time.sleep(0.5)
     print("TorchBed is running: http://127.0.0.1:%d   (Ctrl+C to quit)" % HTTP_PORT)
     try:
         srv.serve_forever()

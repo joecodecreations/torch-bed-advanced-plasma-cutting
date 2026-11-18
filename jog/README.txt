@@ -136,6 +136,11 @@ Board tab
       grbl-1.1h-standard-xy-torch-inverted
     To get back to where you were, flash the newest file under backups.
 
+Restarting
+  Setup tab > "Restart the app" stops and starts TorchBed (and the
+  controller with it). Use it after an update or if something is stuck.
+  Set zero again afterwards.
+
 Arduino not found on Windows?
   - A real Arduino Uno needs no driver on Windows 10/11.
   - A clone with a CH340 chip needs the CH340 driver (search "CH341SER").
