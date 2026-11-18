@@ -16,6 +16,10 @@ First time at the machine
   2. Setup tab: press "Front-left = zero".
   3. Jog to the back-right corner and press "Back-right". That teaches the
      bed size. (Or just type the width and depth and press Save.)
+  If the picture of the bed is the wrong way round for how you stand at the
+  table, press "Turn the picture" (Setup tab) until zero sits in the corner
+  of the grid you expect. The arrow keys always follow the picture. If an
+  arrow then moves the torch the wrong way, teaching the corners corrects it.
   The controller forgets where it is whenever it restarts, so set zero again
   each time you power up.
 

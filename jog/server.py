@@ -437,6 +437,7 @@ def load_config():
            "cut_feed": 1500, "travel_feed": 3000, "dry_feed": 2000,
            "pierce_delay": 0.5, "end_delay": 0.2,
            "torch_on": "M8", "torch_off": "M9", "return_zero": True,
+           "zero_corner": "bl",  # which corner of the screen zero is drawn in: bl, tl, tr or br
            "board": "uno-cnc-shield-v3",
            "thickness": 3.0, "kerf": 1.5, "material": "Mild steel 3 mm",
            # finishing laser: depth per pass is saved with each material, the other two are the laser's own
@@ -1051,7 +1052,7 @@ class Grbl:
         if turned:
             x, y = self.work_xy()
             self.say("The %s arrows were the wrong way round for this table; they have been swapped. "
-                     "The up arrow now moves the torch toward the back." % " and the ".join(turned))
+                     "Moving toward the back now counts up." % " and the ".join(turned))
         if which in ("fr", "br") and x < 10:
             return "This corner is too close to zero. Jog the torch across to the right-hand side first (at least 10 mm)."
         if which in ("bl", "br") and y < 10:
@@ -1061,8 +1062,8 @@ class Grbl:
         if which in ("bl", "br"):
             self.cfg["y_max"] = round(y, 2)
         save_config(self.cfg)
-        self.corner_note = ("The %s arrows were the wrong way round and have been swapped: \u2191 now moves toward the back, "
-                            "\u2192 toward the right." % " and ".join(turned)) if turned else None
+        self.corner_note = ("The %s arrows were the wrong way round for this table and have been swapped."
+                            % " and ".join(turned)) if turned else None
         names = {"fr": "Front-right", "bl": "Back-left", "br": "Back-right"}
         self.say("%s corner set: bed is now %s x %s mm" % (
             names[which], self.cfg.get("x_max") or "?", self.cfg.get("y_max") or "?"))
@@ -1362,6 +1363,8 @@ class Handler(BaseHTTPRequestHandler):
             g.write(b"\x18")
             g.say("Controller reset")
         elif path == "/api/config":
+            if body.get("zero_corner") in ("bl", "tl", "tr", "br"):
+                g.cfg["zero_corner"] = body["zero_corner"]
             for k in ("swap_xy", "flip_x", "flip_y"):
                 if k in body:
                     g.cfg[k] = bool(body[k])

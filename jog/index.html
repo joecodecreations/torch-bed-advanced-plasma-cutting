@@ -498,13 +498,14 @@
         <div class="card">
           <h2>Teach the corners</h2>
           <div class="corners">
-            <button data-corner="bl" data-name="Back-left">◤ Back-left</button>
-            <button data-corner="br" data-name="Back-right">Back-right ◥</button>
-            <button data-corner="fl" data-name="Front-left (zero)" class="primary">◣ Front-left = zero</button>
-            <button data-corner="fr" data-name="Front-right">Front-right ◢</button>
+            <button data-corner="bl" data-name="Back-left">Back-left</button>
+            <button data-corner="br" data-name="Back-right">Back-right</button>
+            <button data-corner="fl" data-name="Front-left (zero)" class="primary">Front-left = zero</button>
+            <button data-corner="fr" data-name="Front-right">Front-right</button>
           </div>
-          <p class="hint">The front is the side you stand at. Jog the torch to the front-left corner and press its button: that is zero. Then jog to the back-right corner and press that one, which sets width and depth in one go. If an arrow turns out to be back to front, it is corrected for you.</p>
+          <p class="hint">Front-left is the zero corner of the grid. Jog the torch there and press its button. Then jog to the back-right corner, diagonally opposite, and press that one: it sets width and depth in one go. If an arrow turns out to be back to front, it is corrected for you. If the picture is the wrong way round for how you stand at the table, press <b>Turn the picture</b> until zero sits in the corner you expect; these buttons and the grid follow it.</p>
           <div class="row" style="margin-top:10px">
+            <button id="turnbed" title="Moves zero to the next corner of the picture, so the screen matches the way you look at your table">Turn the picture ⟳</button>
             <button id="freetravel">Free travel: off</button>
             <button id="clearlimits">Forget bed size</button>
           </div>
@@ -529,7 +530,8 @@
         </div>
         <div class="card">
           <h2>Direction setup</h2>
-          <p class="hint" style="margin-top:0">Stand at the front of the table. <kbd>→</kbd> should move the torch to your right and <kbd>↑</kbd> should move it away from you, toward the back. Tick boxes until both are true. Teaching the corners also corrects this for you.</p>
+          <p class="hint" style="margin-top:0">The arrows should move the torch the same way on the table as on the screen: <kbd>→</kbd> to the right, and <kbd>↑</kbd> <kbd>↓</kbd> up and down the grid. Tick boxes until they do. Teaching the corners also corrects this for you.</p>
+          <div class="field" style="grid-template-columns:1fr 150px"><div>On screen, zero (front-left) is at the<small>pick whichever matches how you look at your table</small></div><select id="zero_corner" aria-label="Where zero is drawn"><option value="bl">bottom left</option><option value="tl">top left</option><option value="tr">top right</option><option value="br">bottom right</option></select></div>
           <label class="chk"><input type="checkbox" id="swap_xy"> Arrows move the wrong axis (swap X and Y)</label>
           <label class="chk"><input type="checkbox" id="flip_x"> Left and right are reversed</label>
           <label class="chk"><input type="checkbox" id="flip_y"> Up and down are reversed</label>
@@ -887,6 +889,12 @@ let feed = Number(store.get('feed', 1500)) || 1500;
 let since = 0, cap = 25, freeOn = false, armed = false, target = null;
 const held = new Set();
 const DIRS = {ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRight: [1, 0]};
+// Zero can be drawn in any corner of the screen. With it at the top, Y runs down the screen; with it
+// on the right, X runs to the left. The arrow keys always mean the direction you see on screen.
+const zeroCorner = () => (S.config && S.config.zero_corner) || 'bl';
+const yDown = () => zeroCorner()[0] === 't';
+const xRev = () => zeroCorner()[1] === 'r';
+const dirOf = k => [xRev() ? -DIRS[k][0] : DIRS[k][0], yDown() ? -DIRS[k][1] : DIRS[k][1]];
 const busy = () => !!(S.program && S.program.active);
 
 let toastTimer = 0;
@@ -921,7 +929,7 @@ function setStep(s) {
 }
 function vector() {
   let x = 0, y = 0;
-  held.forEach(k => { x += DIRS[k][0]; y += DIRS[k][1]; });
+  held.forEach(k => { const d = dirOf(k); x += d[0]; y += d[1]; });
   return [x, y];
 }
 function paintPad() {
@@ -942,7 +950,7 @@ function press(k) {
     held.add(k);
     drive();
   } else {
-    post('/api/jog', {dx: DIRS[k][0], dy: DIRS[k][1], feed, step: Number(step)}).then(tell);
+    post('/api/jog', {dx: dirOf(k)[0], dy: dirOf(k)[1], feed, step: Number(step)}).then(tell);
   }
 }
 function release(k) { if (held.delete(k)) drive(); }
@@ -1260,13 +1268,13 @@ function jobShapes() {
 }
 
 /* ================= view + drawing ================= */
-const toScreen = p => [view.ox + p[0] * view.s, view.oy - p[1] * view.s];
-const toWorld = (sx, sy) => [(sx - view.ox) / view.s, (view.oy - sy) / view.s];
+const toScreen = p => [xRev() ? view.ox - p[0] * view.s : view.ox + p[0] * view.s, yDown() ? view.oy + p[1] * view.s : view.oy - p[1] * view.s];
+const toWorld = (sx, sy) => [xRev() ? (view.ox - sx) / view.s : (sx - view.ox) / view.s, yDown() ? (sy - view.oy) / view.s : (view.oy - sy) / view.s];
 function fit() {
   const m = 46;
   view.s = Math.max(.05, Math.min((cw - m * 2) / bedW(), (ch - m * 2) / bedH()));
-  view.ox = (cw - bedW() * view.s) / 2;
-  view.oy = ch - (ch - bedH() * view.s) / 2;
+  view.ox = xRev() ? cw - (cw - bedW() * view.s) / 2 : (cw - bedW() * view.s) / 2;
+  view.oy = yDown() ? (ch - bedH() * view.s) / 2 : ch - (ch - bedH() * view.s) / 2;
   draw();
 }
 function resize() {
@@ -1284,8 +1292,8 @@ function resize() {
 function zoomAt(sx, sy, k) {
   const w = toWorld(sx, sy);
   view.s = Math.max(.05, Math.min(200, view.s * k));
-  view.ox = sx - w[0] * view.s;
-  view.oy = sy + w[1] * view.s;
+  view.ox = xRev() ? sx + w[0] * view.s : sx - w[0] * view.s;
+  view.oy = yDown() ? sy - w[1] * view.s : sy + w[1] * view.s;
   draw();
 }
 function gridStep() {
@@ -1301,7 +1309,8 @@ function draw() {
   const W = bedW(), H = bedH();
   ctx.clearRect(0, 0, cw, ch);
   ctx.fillStyle = css('--bg'); ctx.fillRect(0, 0, cw, ch);
-  const a = toScreen([0, H]), b = toScreen([W, 0]);
+  const c0 = toScreen([0, 0]), c1 = toScreen([W, H]);
+  const a = [Math.min(c0[0], c1[0]), Math.min(c0[1], c1[1])], b = [Math.max(c0[0], c1[0]), Math.max(c0[1], c1[1])];     // top-left and bottom-right on screen
   ctx.fillStyle = css('--bed');
   ctx.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
   // grid
@@ -1309,12 +1318,12 @@ function draw() {
   const big = g === 1 ? 10 : g === 5 ? 50 : g === 10 ? 50 : g === 50 ? 100 : g * 5;
   ctx.lineWidth = 1;
   for (let x = 0; x <= W + 1e-6; x += g) {
-    const sx = Math.round(view.ox + x * view.s) + .5;
+    const sx = Math.round(toScreen([x, 0])[0]) + .5;
     ctx.strokeStyle = (Math.round(x) % big === 0) ? css('--grid-major') : css('--grid');
     ctx.beginPath(); ctx.moveTo(sx, a[1]); ctx.lineTo(sx, b[1]); ctx.stroke();
   }
   for (let y = 0; y <= H + 1e-6; y += g) {
-    const sy = Math.round(view.oy - y * view.s) + .5;
+    const sy = Math.round(toScreen([0, y])[1]) + .5;
     ctx.strokeStyle = (Math.round(y) % big === 0) ? css('--grid-major') : css('--grid');
     ctx.beginPath(); ctx.moveTo(a[0], sy); ctx.lineTo(b[0], sy); ctx.stroke();
   }
@@ -1325,13 +1334,18 @@ function draw() {
   ctx.setLineDash([]);
   ctx.fillStyle = css('--muted'); ctx.font = '11px -apple-system, Segoe UI, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  for (let x = 0; x <= W + 1e-6; x += big) ctx.fillText(String(Math.round(x)), view.ox + x * view.s, b[1] + 6);
+  for (let x = 0; x <= W + 1e-6; x += big) ctx.fillText(String(Math.round(x)), toScreen([x, 0])[0], b[1] + 6);
   ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-  for (let y = 0; y <= H + 1e-6; y += big) ctx.fillText(String(Math.round(y)), a[0] - 7, view.oy - y * view.s);
-  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
-  ctx.fillText('back', a[0] + 4, a[1] - 5);
-  ctx.textBaseline = 'top';
-  ctx.fillText('front (you stand here)', a[0] + 46, b[1] + 22);
+  for (let y = 0; y <= H + 1e-6; y += big) ctx.fillText(String(Math.round(y)), a[0] - 7, toScreen([0, y])[1]);
+  // name the two corners that matter: zero, and the one diagonally opposite
+  ctx.textBaseline = yDown() ? 'bottom' : 'top';
+  ctx.textAlign = xRev() ? 'right' : 'left';
+  ctx.fillStyle = css('--accent');
+  ctx.fillText('zero · front-left', c0[0] + (xRev() ? -4 : 4), c0[1] + (yDown() ? -5 : 22));
+  ctx.textBaseline = yDown() ? 'top' : 'bottom';
+  ctx.textAlign = xRev() ? 'left' : 'right';
+  ctx.fillStyle = css('--muted');
+  ctx.fillText('back-right', c1[0] + (xRev() ? 4 : -4), c1[1] + (yDown() ? 22 : -5));
 
   // shapes
   const showOrder = currentTab === 'cut' || orderOpen;
@@ -1401,7 +1415,7 @@ function draw() {
     });
     ctx.fillStyle = css('--shape-sel'); ctx.font = '11px -apple-system, Segoe UI, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    ctx.fillText(bb.w.toFixed(1) + ' × ' + bb.h.toFixed(1) + ' mm', (p0[0] + p1[0]) / 2, p0[1] - 9);
+    ctx.fillText(bb.w.toFixed(1) + ' × ' + bb.h.toFixed(1) + ' mm', (p0[0] + p1[0]) / 2, Math.min(p0[1], p1[1]) - 9);
   }
   // draft
   if (draft) {
@@ -1479,7 +1493,7 @@ function draw() {
 }
 function handles(bb) {
   const pts = [[bb.x0, bb.y0, 'sw'], [bb.x1, bb.y0, 'se'], [bb.x1, bb.y1, 'ne'], [bb.x0, bb.y1, 'nw']];
-  return pts.map(p => { const q = toScreen(p); const dx = p[2][1] === 'w' ? -5 : 5, dy = p[2][0] === 's' ? 5 : -5;
+  return pts.map(p => { const q = toScreen(p); const dx = (p[2][1] === 'w') !== xRev() ? -5 : 5, dy = (p[2][0] === 's') !== yDown() ? 5 : -5;
     return {sx: q[0] + dx, sy: q[1] + dy, id: p[2], x: p[0], y: p[1]}; });
 }
 
@@ -1902,7 +1916,7 @@ function runTrace() {
 $('t-cancel').onclick = () => $('traceveil').classList.remove('open');
 $('t-add').onclick = () => {
   const k = traceWidth() / T.w;
-  const list = T.loops.map(l => ({pts: l.map(p => [p[0] * k, (T.h - p[1]) * k]), closed: true}));
+  const list = T.loops.map(l => ({pts: l.map(p => [(xRev() ? T.w - p[0] : p[0]) * k, (yDown() ? p[1] : T.h - p[1]) * k]), closed: true}));
   $('traceveil').classList.remove('open');
   placeImported(list, 'Image traced');
 };
@@ -1952,7 +1966,7 @@ function importSVG(text) {
   holder.innerHTML = '';
   if (!list.length) { note('No lines or shapes were found in that SVG.'); return; }
   const b = bbox(list);
-  list.forEach(s => { s.pts = s.pts.map(p => [p[0] - b.x0, b.y1 - p[1]]); });   // SVG's Y runs downward
+  list.forEach(s => { s.pts = s.pts.map(p => [xRev() ? b.x1 - p[0] : p[0] - b.x0, yDown() ? p[1] - b.y0 : b.y1 - p[1]]); });   // keep it the right way round on screen
   placeImported(joinPaths(list, .05), 'SVG imported');
 }
 function importDXF(text) {
@@ -2019,6 +2033,7 @@ function importDXF(text) {
   }
   if (!list.length) { note('No lines, arcs, circles or polylines were found in that DXF.'); return; }
   list.forEach(s => { s.pts = s.pts.map(p => [p[0] * unit, p[1] * unit]); });
+  if (yDown() || xRev()) { const bb = bbox(list); list.forEach(s => { s.pts = s.pts.map(p => [xRev() ? bb.x0 + bb.x1 - p[0] : p[0], yDown() ? bb.y0 + bb.y1 - p[1] : p[1]]); }); }   // keep it the right way round on screen
   placeImported(joinPaths(list, .05), 'DXF imported', true);
 }
 $('filebtn').onclick = () => $('vecfile').click();
@@ -2232,6 +2247,20 @@ document.querySelectorAll('#presets button').forEach(b => b.addEventListener('cl
 document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => { stopJog(); setStep(b.dataset.step); }));
 document.querySelectorAll('#caps button').forEach(b => b.addEventListener('click', () => { stopJog(); post('/api/config', {max_hold_mm: Number(b.dataset.cap)}); }));
 ['swap_xy', 'flip_x', 'flip_y'].forEach(id => $(id).addEventListener('change', e => { stopJog(); post('/api/config', {[id]: e.target.checked}); }));
+// Where zero is drawn is only about the picture: it does not change which way the machine counts.
+// The arrow keys always move the torch the way they point on screen, so they follow the picture.
+async function setZeroCorner(want) {
+  stopJog();
+  const was = zeroCorner();
+  if (want === was) return;
+  await post('/api/config', {zero_corner: want});
+  const s2 = await (await fetch('/api/state')).json();
+  if ((s2.config.zero_corner || 'bl') !== want) { $('zero_corner').value = was; return note('This needs the app restarted once to take effect: close its window and start it again.'); }
+  const names = {bl: 'bottom left', tl: 'top left', tr: 'top right', br: 'bottom right'};
+  note('Zero is now drawn at the ' + names[want] + ' of the grid. The arrow keys follow the picture. If one then moves the torch the wrong way, teaching the corners puts it right.', true);
+}
+$('zero_corner').addEventListener('change', e => { setZeroCorner(e.target.value); e.target.blur(); });
+$('turnbed').onclick = () => setZeroCorner({bl: 'tl', tl: 'tr', tr: 'br', br: 'bl'}[zeroCorner()]);
 $('cmdform').addEventListener('submit', e => {
   e.preventDefault();
   const line = $('cmd').value.trim();
@@ -2333,6 +2362,12 @@ async function poll() {
     $('py').textContent = s.y.toFixed(2);
     if (Number($('slider').max) !== s.max_feed && s.max_feed > 0) { $('slider').max = s.max_feed; if (feed > s.max_feed) setFeed(s.max_feed); }
     ['swap_xy', 'flip_x', 'flip_y'].forEach(id => { if (document.activeElement !== $(id)) $(id).checked = !!c[id]; });
+    if (document.activeElement !== $('zero_corner')) $('zero_corner').value = c.zero_corner || 'bl';
+    // lay the four corner buttons out the way the corners sit on screen
+    document.querySelectorAll('.corners [data-corner]').forEach(b => {
+      const row = (b.dataset.corner[0] === 'f') === yDown() ? 0 : 1, col = (b.dataset.corner[1] === 'l') === !xRev() ? 0 : 1;
+      b.style.order = row * 2 + col + 1; b.style.justifySelf = col ? 'end' : 'start';
+    });
     if (cap !== c.max_hold_mm) { cap = c.max_hold_mm; setStep(step); }
     document.querySelectorAll('#caps button').forEach(b => b.classList.toggle('sel', Number(b.dataset.cap) === cap));
     CFG_NUM.concat(['torch_on', 'torch_off', 'thickness', 'kerf']).forEach(k => { const el = $('c-' + k); if (document.activeElement !== el && String(el.value) !== String(c[k])) el.value = c[k]; });
@@ -2346,14 +2381,14 @@ async function poll() {
       : 'Bed is ' + c.x_max.toFixed(1) + ' × ' + c.y_max.toFixed(1) + ' mm, but limits are off until you set zero at the front-left corner.';
     $('limtext').textContent = lim;
     $('limtext').style.color = s.limits_on ? 'var(--ok)' : 'var(--warn)';
-    const bedKey = (c.x_max || 0) + 'x' + (c.y_max || 0);
+    const bedKey = (c.x_max || 0) + 'x' + (c.y_max || 0) + '@' + (c.zero_corner || 'bl');
     if (bedKey !== lastBed) {
-      const firstTime = lastBed === '';
+      const firstTime = lastBed === '', prevBed = lastBed;
       lastBed = bedKey;
       if (document.activeElement !== $('bedw')) $('bedw').value = c.x_max || '';
       if (document.activeElement !== $('bedh')) $('bedh').value = c.y_max || '';
       $('bedinfo').textContent = bedKnown() ? 'Bed ' + c.x_max + ' × ' + c.y_max + ' mm' : 'Bed size not set';
-      if (firstTime || refit) { refit = false; fit(); }
+      if (firstTime || refit || bedKey.slice(-2) !== (prevBed || bedKey).slice(-2)) { refit = false; fit(); }
       updateStats();
     }
     if (target && st.startsWith('Idle') && Math.hypot(s.x - target[0], s.y - target[1]) < .2) target = null;
@@ -2710,7 +2745,7 @@ var PROJECT = store.get('plasma_project', ''), ASSEMBLY = null, autosaveTimer = 
 function thumbSvg() {
   const W = bedW(), H = bedH(), list = shapes.filter(s => pageOf(s) === 0).slice(0, 400);
   const d = list.map(s => { const st = Math.max(1, Math.ceil(s.pts.length / 60));
-    return s.pts.filter((_, i) => i % st === 0).map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(0) + ' ' + (H - p[1]).toFixed(0)).join('') + (s.closed ? 'Z' : ''); }).join('');
+    return s.pts.filter((_, i) => i % st === 0).map((p, i) => (i ? 'L' : 'M') + (xRev() ? W - p[0] : p[0]).toFixed(0) + ' ' + (yDown() ? p[1] : H - p[1]).toFixed(0)).join('') + (s.closed ? 'Z' : ''); }).join('');
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W.toFixed(0) + ' ' + H.toFixed(0) + '"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>';
 }
 function projectData() {
@@ -2836,7 +2871,7 @@ function renderOrder() {
     .concat(vis().filter(s => s.skip).map(s => ({s, n: 0, depth: 0})));
   const html = rows.map(r => {
     const s = r.s, b = bbox([s]), m = Math.max(b.w, b.h, .001) * .08, stepN = Math.max(1, Math.ceil(s.pts.length / 70));
-    const d = s.pts.filter((_, i) => i % stepN === 0).map((p, i) => (i ? 'L' : 'M') + (p[0] - b.x0).toFixed(1) + ' ' + (b.y1 - p[1]).toFixed(1)).join('') + (s.closed ? 'Z' : '');
+    const d = s.pts.filter((_, i) => i % stepN === 0).map((p, i) => (i ? 'L' : 'M') + (xRev() ? b.x1 - p[0] : p[0] - b.x0).toFixed(1) + ' ' + (yDown() ? p[1] - b.y0 : b.y1 - p[1]).toFixed(1)).join('') + (s.closed ? 'Z' : '');
     // cutting an outline before something inside it means the inside is cut on a piece that has already dropped
     const early = !s.skip && s.closed && s.pts.length > 2 && vis().some(o => o !== s && !o.skip && order.get(o.id) > order.get(s.id) && inside(o.pts[0], s.pts));
     const k0 = s.skip ? "Don't cut" : !s.closed ? 'Line' : r.depth % 2 ? 'Hole' : 'Outline';
@@ -2963,7 +2998,10 @@ function simBuild() {
   const mname = String(c.material || '').toLowerCase();
   TINT = /alu/.test(mname) ? [1.04, 1.05, 1.06] : /stainless|inox/.test(mname) ? [.98, .99, 1.01] : /copper/.test(mname) ? [1.08, .74, .56]
     : /brass|bronze/.test(mname) ? [1.06, .92, .58] : /galv|zinc/.test(mname) ? [.95, .98, 1] : [.86, .89, .95];
-  const paths = cutPlan(jobShapes()), segs = [];
+  let paths = cutPlan(jobShapes());
+  // zero drawn in another corner: turn the job the same way so the preview matches the bed on screen
+  if (yDown() || xRev()) paths = paths.map(p => { const q = p.map(v => [xRev() ? -v[0] : v[0], yDown() ? -v[1] : v[1]]); q.closed = p.closed; q.sid = p.sid; q.depth = p.depth; return q; });
+  const segs = [];
   let t = 0, pos = [0, 0];
   const add = (a, b, dur, on, kind, pi) => { if (dur > 1e-9) { segs.push({t0: t, t1: t + dur, a, b, on, kind, pi}); t += dur; } };
   const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);

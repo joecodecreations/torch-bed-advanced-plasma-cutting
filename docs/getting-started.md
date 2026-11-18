@@ -17,7 +17,8 @@ The app finds the Arduino by itself. To force a port: `python3 jog/server.py COM
 1. **Move** tab: use the arrow keys or the on-screen pad to jog the torch to the front-left corner.
 2. **Setup** tab: press **Front-left = zero**.
 3. Jog to the back-right corner and press **Back-right**. The bed on screen now matches your table. You can also type the width and depth.
-4. If an arrow moves the wrong way, tick the boxes under **Direction setup** until right is right and up is away from you.
+4. If the picture is the wrong way round for how you stand at the table, press **Turn the picture** until zero sits in the corner of the grid you expect. The corner buttons and the arrow keys follow the picture.
+5. If an arrow still moves the torch the wrong way, teaching a corner corrects it for you, or tick the boxes under **Direction setup**.
 
 GRBL forgets where it is when it restarts, so set zero again each time you power up.
 
