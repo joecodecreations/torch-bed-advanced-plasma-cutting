@@ -1,0 +1,17 @@
+# things the app writes while it runs
+jog/config.json
+jog/server.log
+projects/
+firmware/backups/
+
+# local-only firmware material
+firmware/grbl/
+firmware/build/
+firmware/uno1_original_backup.hex
+
+# generated
+__pycache__/
+*.pyc
+tests/fixtures/
+.DS_Store
+.claude/

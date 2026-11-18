@@ -1,0 +1,19 @@
+name: Machine report
+description: Tell us how TorchBed ran on your real table
+labels: [hardware-report]
+body:
+  - type: textarea
+    attributes:
+      label: Your setup
+      description: Board, drivers, motors, plasma cutter, relay board, bed size.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What you cut and how it went
+      description: Material, thickness, the settings that worked, photos welcome.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Anything that went wrong or surprised you

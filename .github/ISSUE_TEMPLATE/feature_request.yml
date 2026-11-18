@@ -1,0 +1,13 @@
+name: Feature request
+description: An idea to make TorchBed better
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: What would you like to be able to do
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Why
+      description: What are you making, and what gets in the way today?
