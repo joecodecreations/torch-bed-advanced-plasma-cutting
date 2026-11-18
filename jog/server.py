@@ -499,6 +499,7 @@ class Grbl:
         self.info = {"version": None, "options": None}
         self.flashing = False
         self.flash = {"active": False, "stage": None, "done": 0, "total": 0, "error": None, "result": None, "file": None}
+        self.corner_note = None
         self.last_open_error = None
         self.silent_ports = set()
         self.got_status = False
@@ -1038,15 +1039,30 @@ class Grbl:
         if self.state != "Idle":
             return "Stop the machine first"
         x, y = self.work_xy()
+        # The corners are the ground truth. If the torch had to travel the "wrong" way to reach one,
+        # the direction setup is back to front for that axis: turn it round rather than refuse.
+        turned = []
+        if which in ("fr", "br") and x < -10:
+            self.cfg["flip_x"] = not self.cfg["flip_x"]
+            turned.append("left and right")
+        if which in ("bl", "br") and y < -10:
+            self.cfg["flip_y"] = not self.cfg["flip_y"]
+            turned.append("up and down")
+        if turned:
+            x, y = self.work_xy()
+            self.say("The %s arrows were the wrong way round for this table; they have been swapped. "
+                     "The up arrow now moves the torch toward the back." % " and the ".join(turned))
         if which in ("fr", "br") and x < 10:
-            return "This corner must be to the right of zero (X above 10 mm)"
+            return "This corner is too close to zero. Jog the torch across to the right-hand side first (at least 10 mm)."
         if which in ("bl", "br") and y < 10:
-            return "This corner must be behind zero (Y above 10 mm)"
+            return "This corner is too close to zero. Jog the torch to the back of the table first (at least 10 mm)."
         if which in ("fr", "br"):
             self.cfg["x_max"] = round(x, 2)
         if which in ("bl", "br"):
             self.cfg["y_max"] = round(y, 2)
         save_config(self.cfg)
+        self.corner_note = ("The %s arrows were the wrong way round and have been swapped: \u2191 now moves toward the back, "
+                            "\u2192 toward the right." % " and ".join(turned)) if turned else None
         names = {"fr": "Front-right", "bl": "Back-left", "br": "Back-right"}
         self.say("%s corner set: bed is now %s x %s mm" % (
             names[which], self.cfg.get("x_max") or "?", self.cfg.get("y_max") or "?"))
@@ -1300,7 +1316,10 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/farcorner":
             err = g.set_corner("br")
         elif path == "/api/corner":
+            g.corner_note = None
             err = g.set_corner(body.get("which"))
+            if not err and g.corner_note:
+                return self.reply({"ok": True, "error": None, "note": g.corner_note})
         elif path == "/api/project/save":
             try:
                 err = project_save(body.get("name"), body.get("data"))

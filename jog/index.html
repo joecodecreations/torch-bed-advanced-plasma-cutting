@@ -503,7 +503,7 @@
             <button data-corner="fl" data-name="Front-left (zero)" class="primary">◣ Front-left = zero</button>
             <button data-corner="fr" data-name="Front-right">Front-right ◢</button>
           </div>
-          <p class="hint">Jog the torch to a corner of the bed, then press the button for that corner. Start with front-left: it is zero. Back-right sets both width and depth in one go.</p>
+          <p class="hint">The front is the side you stand at. Jog the torch to the front-left corner and press its button: that is zero. Then jog to the back-right corner and press that one, which sets width and depth in one go. If an arrow turns out to be back to front, it is corrected for you.</p>
           <div class="row" style="margin-top:10px">
             <button id="freetravel">Free travel: off</button>
             <button id="clearlimits">Forget bed size</button>
@@ -529,7 +529,7 @@
         </div>
         <div class="card">
           <h2>Direction setup</h2>
-          <p class="hint" style="margin-top:0">Press <kbd>→</kbd>. If the torch does not move right, tick boxes until it does. Then check <kbd>↑</kbd> moves it away from you.</p>
+          <p class="hint" style="margin-top:0">Stand at the front of the table. <kbd>→</kbd> should move the torch to your right and <kbd>↑</kbd> should move it away from you, toward the back. Tick boxes until both are true. Teaching the corners also corrects this for you.</p>
           <label class="chk"><input type="checkbox" id="swap_xy"> Arrows move the wrong axis (swap X and Y)</label>
           <label class="chk"><input type="checkbox" id="flip_x"> Left and right are reversed</label>
           <label class="chk"><input type="checkbox" id="flip_y"> Up and down are reversed</label>
@@ -2218,7 +2218,7 @@ $('bedsave').onclick = () => {
 };
 let refit = false;
 document.querySelectorAll('[data-corner]').forEach(b => b.addEventListener('click', () =>
-  post('/api/corner', {which: b.dataset.corner}).then(r => { if (r.ok) { note(b.dataset.name + ' corner set to where the torch is now.', true); refit = true; } else note(r.error); })));
+  post('/api/corner', {which: b.dataset.corner}).then(r => { if (r.ok) { note(b.dataset.name + ' corner set to where the torch is now.' + (r.note ? ' ' + r.note : ''), true); refit = true; } else note(r.error); })));
 $('clearlimits').onclick = () => post('/api/clearlimits').then(tell);
 $('freetravel').onclick = () => post('/api/freetravel', {on: !freeOn});
 $('stop').onclick = stopAll;
