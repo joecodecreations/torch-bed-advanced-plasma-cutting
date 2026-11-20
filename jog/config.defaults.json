@@ -1,0 +1,75 @@
+{
+  "swap_xy": true,
+  "flip_x": false,
+  "flip_y": false,
+  "max_hold_mm": 0,
+  "x_max": 850.46,
+  "y_max": 327.86,
+  "cut_feed": 800.0,
+  "travel_feed": 3000.0,
+  "dry_feed": 2000,
+  "pierce_delay": 0.8,
+  "end_delay": 0.3,
+  "torch_on": "M8",
+  "torch_off": "M9",
+  "return_zero": false,
+  "arrow_rev_x": false,
+  "arrow_rev_y": false,
+  "zero_corner": "tl",
+  "board": "uno-cnc-shield-v3",
+  "thickness": 6.0,
+  "kerf": 2.0,
+  "material": "Mild steel 6 mm",
+  "laser_pass": 0.02,
+  "laser_speed": 1000,
+  "laser_hatch": 0.03,
+  "materials": [
+    {
+      "name": "Mild steel 1.5 mm",
+      "kerf": 1.5,
+      "thickness": 1.5,
+      "cut_feed": 3500.0,
+      "pierce_delay": 0.2,
+      "end_delay": 0.2,
+      "laser_pass": 0.02
+    },
+    {
+      "name": "Mild steel 3 mm",
+      "kerf": 1.5,
+      "thickness": 3.0,
+      "cut_feed": 2000.0,
+      "pierce_delay": 0.4,
+      "end_delay": 0.2,
+      "laser_pass": 0.02
+    },
+    {
+      "name": "Mild steel 6 mm",
+      "kerf": 2.0,
+      "thickness": 6.0,
+      "cut_feed": 800.0,
+      "pierce_delay": 0.8,
+      "end_delay": 0.3,
+      "laser_pass": 0.02
+    },
+    {
+      "name": "Stainless steel 3 mm",
+      "kerf": 1.5,
+      "thickness": 3.0,
+      "cut_feed": 1800.0,
+      "pierce_delay": 0.5,
+      "end_delay": 0.2,
+      "laser_pass": 0.02
+    },
+    {
+      "name": "Aluminium 3 mm",
+      "kerf": 1.6,
+      "thickness": 3.0,
+      "cut_feed": 2400.0,
+      "pierce_delay": 0.4,
+      "end_delay": 0.2,
+      "laser_pass": 0.02
+    }
+  ],
+  "jog_feed": 5650.0,
+  "jog_step": "hold"
+}

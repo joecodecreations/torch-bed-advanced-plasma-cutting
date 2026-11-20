@@ -411,7 +411,7 @@
         <div class="card">
           <h2>Jog speed</h2>
           <div class="speed"><b><span id="feed">1500</span> mm/min</b><span class="hint" id="ipm" style="margin:0"></span></div>
-          <input type="range" id="slider" min="50" max="6000" step="50" value="1500" aria-label="Jog speed">
+          <input type="range" id="slider" min="50" max="15000" step="50" value="1500" aria-label="Jog speed">
           <div class="row" id="presets" style="margin-top:8px">
             <button data-feed="300">Slow</button><button data-feed="1500">Medium</button><button data-feed="4000">Fast</button>
           </div>
@@ -530,7 +530,7 @@
         </div>
         <div class="card">
           <h2>Direction setup</h2>
-          <p class="hint" style="margin-top:0">The arrows should move the torch the same way on the table as on the screen: <kbd>→</kbd> to the right, and <kbd>↑</kbd> <kbd>↓</kbd> up and down the grid. Tick boxes until they do. Teaching the corners also corrects this for you.</p>
+          <p class="hint" style="margin-top:0">The arrows should move the torch the same way on the table as on the screen: <kbd>→</kbd> to the right, and <kbd>↑</kbd> <kbd>↓</kbd> up and down the grid. Tick a box to turn just that pair of arrow keys round; it does not turn the picture or change where Move torch here goes. Teaching the corners sets which way the machine counts.</p>
           <div class="field" style="grid-template-columns:1fr 150px"><div>On screen, zero (front-left) is at the<small>pick whichever matches how you look at your table</small></div><select id="zero_corner" aria-label="Where zero is drawn"><option value="bl">bottom left</option><option value="tl">top left</option><option value="tr">top right</option><option value="br">bottom right</option></select></div>
           <label class="chk"><input type="checkbox" id="swap_xy"> Arrows move the wrong axis (swap X and Y)</label>
           <label class="chk"><input type="checkbox" id="flip_x"> Left and right are reversed</label>
@@ -899,7 +899,9 @@ const DIRS = {ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRigh
 const zeroCorner = () => (S.config && S.config.zero_corner) || 'bl';
 const yDown = () => zeroCorner()[0] === 't';
 const xRev = () => zeroCorner()[1] === 'r';
-const dirOf = k => [xRev() ? -DIRS[k][0] : DIRS[k][0], yDown() ? -DIRS[k][1] : DIRS[k][1]];
+// Arrow keys follow the picture, then the two "reversed" boxes turn just the keys round.
+const arrowRev = a => !!(S.config && S.config['arrow_rev_' + a]);
+const dirOf = k => [(xRev() !== arrowRev('x')) ? -DIRS[k][0] : DIRS[k][0], (yDown() !== arrowRev('y')) ? -DIRS[k][1] : DIRS[k][1]];
 const busy = () => !!(S.program && S.program.active);
 
 let toastTimer = 0;
@@ -918,7 +920,16 @@ function showFeed() {
   $('slider').value = feed;
   $('ipm').textContent = (feed / 25.4).toFixed(0) + ' in/min';
   store.set('feed', feed);
+  saveLater('jog_feed', feed);
 }
+// Jog speed and step mode are kept by the app itself, so they survive a refresh, another browser or a restart.
+const saveTimers = {};
+function saveLater(k, v) {
+  if (!loadedPrefs) return;
+  clearTimeout(saveTimers[k]);
+  saveTimers[k] = setTimeout(() => { if (S.config && S.config[k] !== v) post('/api/config', {[k]: v}); }, 400);
+}
+let loadedPrefs = false;
 function setFeed(v) {
   feed = Math.max(50, Math.min(Number($('slider').max), Math.round(v / 50) * 50));
   showFeed();
@@ -931,6 +942,7 @@ function setStep(s) {
       : 'Hold an arrow to move; let go to stop. It also stops by itself after ' + cap + ' mm.')
     : 'Each arrow press moves ' + s + ' mm.';
   store.set('step', s);
+  saveLater('jog_step', s);
 }
 function vector() {
   let x = 0, y = 0;
@@ -2130,7 +2142,12 @@ function paintMark() {
     : 'Click a shape on the bed to choose whether it gets cut.' + (total ? ' ' + total + ' marked "don\'t cut" (dashed grey).' : '');
 }
 const CFG_NUM = ['cut_feed', 'pierce_delay', 'end_delay', 'travel_feed', 'dry_feed', 'laser_pass', 'laser_speed', 'laser_hatch'];
-CFG_NUM.forEach(k => $('c-' + k).addEventListener('change', e => { const v = Number(e.target.value); if (isFinite(v)) post('/api/config', {[k]: v}); }));
+CFG_NUM.forEach(k => {
+  const save = e => { const v = Number(e.target.value); if (e.target.value !== '' && isFinite(v)) post('/api/config', {[k]: v}); };
+  let t = 0;
+  $('c-' + k).addEventListener('change', save);
+  $('c-' + k).addEventListener('input', e => { clearTimeout(t); t = setTimeout(() => save(e), 600); });
+});
 ['torch_on', 'torch_off'].forEach(k => $('c-' + k).addEventListener('change', e => post('/api/config', {[k]: e.target.value})));
 $('c-return_zero').addEventListener('change', e => post('/api/config', {return_zero: e.target.checked}));
 
@@ -2267,7 +2284,13 @@ $('slider').addEventListener('keydown', e => { if (DIRS[e.key]) e.preventDefault
 document.querySelectorAll('#presets button').forEach(b => b.addEventListener('click', () => setFeed(Number(b.dataset.feed))));
 document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => { stopJog(); setStep(b.dataset.step); }));
 document.querySelectorAll('#caps button').forEach(b => b.addEventListener('click', () => { stopJog(); post('/api/config', {max_hold_mm: Number(b.dataset.cap)}); }));
-['swap_xy', 'flip_x', 'flip_y'].forEach(id => $(id).addEventListener('change', e => { stopJog(); post('/api/config', {[id]: e.target.checked}); }));
+$('swap_xy').addEventListener('change', e => { stopJog(); post('/api/config', {swap_xy: e.target.checked}); });
+// Reversing an arrow only turns the picture round. It never changes which way the machine counts
+// (the corners decide that), so Move torch here, the limits and cuts stay where they belong.
+// The reversed boxes only change which way the arrow keys drive the torch. They never turn the
+// picture (that is the "zero is at the" choice) and never change the count (the corners set that).
+$('flip_y').addEventListener('change', e => { stopJog(); post('/api/config', {arrow_rev_y: e.target.checked}); });
+$('flip_x').addEventListener('change', e => { stopJog(); post('/api/config', {arrow_rev_x: e.target.checked}); });
 // Where zero is drawn is only about the picture: it does not change which way the machine counts.
 // The arrow keys always move the torch the way they point on screen, so they follow the picture.
 async function setZeroCorner(want) {
@@ -2376,13 +2399,22 @@ async function poll() {
     const s = await (await fetch('/api/state?since=' + since)).json();
     since = s.seq;
     S = s;
+    if (!loadedPrefs && s.config) {
+      // first reply: take the saved jog speed and step from the app, not this browser
+      loadedPrefs = true;
+      if (s.max_feed > 0) $('slider').max = s.max_feed;
+      if (s.config.jog_feed) setFeed(s.config.jog_feed); else saveLater('jog_feed', feed);
+      if (s.config.jog_step) setStep(String(s.config.jog_step)); else saveLater('jog_step', step);
+    }
     const st = s.state || '', c = s.config;
     $('state').textContent = s.connected ? st + (s.port ? ' · ' + s.port.replace('/dev/cu.', '') : '') : 'Arduino not found';
     $('dot').style.background = !s.connected ? 'var(--bad)' : st.startsWith('Alarm') ? 'var(--bad)' : st.startsWith('Idle') ? 'var(--ok)' : 'var(--warn)';
     $('px').textContent = s.x.toFixed(2);
     $('py').textContent = s.y.toFixed(2);
     if (Number($('slider').max) !== s.max_feed && s.max_feed > 0) { $('slider').max = s.max_feed; if (feed > s.max_feed) setFeed(s.max_feed); }
-    ['swap_xy', 'flip_x', 'flip_y'].forEach(id => { if (document.activeElement !== $(id)) $(id).checked = !!c[id]; });
+    if (document.activeElement !== $('swap_xy')) $('swap_xy').checked = !!c.swap_xy;
+    if (document.activeElement !== $('flip_y')) $('flip_y').checked = !!c.arrow_rev_y;
+    if (document.activeElement !== $('flip_x')) $('flip_x').checked = !!c.arrow_rev_x;
     if (document.activeElement !== $('zero_corner')) $('zero_corner').value = c.zero_corner || 'bl';
     // lay the four corner buttons out the way the corners sit on screen
     document.querySelectorAll('.corners [data-corner]').forEach(b => {

@@ -27,6 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HERE = os.path.dirname(os.path.abspath(__file__))
 HTTP_PORT = int(os.environ.get("JOG_HTTP_PORT") or 8790)
 CONFIG_PATH = os.environ.get("JOG_CONFIG") or os.path.join(HERE, "config.json")
+DEFAULTS_PATH = os.path.join(HERE, "config.defaults.json")
 MAX_PROGRAM_POINTS = 200000
 JOG_CANCEL = b"\x85"
 # A held arrow key asks for one move of at most "max_hold_mm" and cancels it on
@@ -437,17 +438,21 @@ def load_config():
            "cut_feed": 1500, "travel_feed": 3000, "dry_feed": 2000,
            "pierce_delay": 0.5, "end_delay": 0.2,
            "torch_on": "M8", "torch_off": "M9", "return_zero": True,
+           "arrow_rev_x": False, "arrow_rev_y": False,  # reverse only the arrow keys; picture and count untouched
            "zero_corner": "bl",  # which corner of the screen zero is drawn in: bl, tl, tr or br
            "board": "uno-cnc-shield-v3",
            "thickness": 3.0, "kerf": 1.5, "material": "Mild steel 3 mm",
            # finishing laser: depth per pass is saved with each material, the other two are the laser's own
            "laser_pass": 0.02, "laser_speed": 1000, "laser_hatch": 0.03,
            "materials": [dict(m) for m in DEFAULT_MATERIALS]}
-    try:
-        with open(CONFIG_PATH) as f:
-            cfg.update(json.load(f))
-    except (OSError, ValueError):
-        pass
+    # Saved defaults first (config.defaults.json), then the live settings on top. If config.json is
+    # lost or reset, the app comes back with the defaults instead of the factory values.
+    for path in (DEFAULTS_PATH, CONFIG_PATH):
+        try:
+            with open(path) as f:
+                cfg.update(json.load(f))
+        except (OSError, ValueError):
+            pass
     # settings saved before the cut width existed: fill it in
     stock = {m["name"]: m["kerf"] for m in DEFAULT_MATERIALS}
     for m in cfg.get("materials") or []:
@@ -1012,7 +1017,9 @@ class Grbl:
         self.cancel()
         self.settle()
         mx, my = self.to_machine(x, y)
-        self.send_line("$J=G90 G21 X%.3f Y%.3f F%.0f" % (mx, my, self.clamp_feed(feed)))
+        sx, sy = self.work_xy()
+        self.say("Move torch here: from screen X%.1f Y%.1f to X%.1f Y%.1f" % (sx, sy, x, y))
+        self.send_line("$J=G90 G21 X%.3f Y%.3f F%.0f" % (mx, my, self.clamp_feed(feed)), echo=True)
         return None
 
     def set_zero(self):
@@ -1043,16 +1050,22 @@ class Grbl:
         # The corners are the ground truth. If the torch had to travel the "wrong" way to reach one,
         # the direction setup is back to front for that axis: turn it round rather than refuse.
         turned = []
+        # Turning the count round also turns the picture round, so each arrow key still moves
+        # the torch the same way on the table and the crosshair the same way on screen.
+        zc = self.cfg.get("zero_corner") or "bl"
         if which in ("fr", "br") and x < -10:
             self.cfg["flip_x"] = not self.cfg["flip_x"]
+            zc = zc[0] + {"l": "r", "r": "l"}[zc[1]]
             turned.append("left and right")
         if which in ("bl", "br") and y < -10:
             self.cfg["flip_y"] = not self.cfg["flip_y"]
+            zc = {"t": "b", "b": "t"}[zc[0]] + zc[1]
             turned.append("up and down")
+        self.cfg["zero_corner"] = zc
         if turned:
             x, y = self.work_xy()
-            self.say("The %s arrows were the wrong way round for this table; they have been swapped. "
-                     "Moving toward the back now counts up." % " and the ".join(turned))
+            self.say("The %s count was the wrong way round for this table; it has been corrected and the "
+                     "picture turned to match. The arrows still move the same way." % " and the ".join(turned))
         if which in ("fr", "br") and x < 10:
             return "This corner is too close to zero. Jog the torch across to the right-hand side first (at least 10 mm)."
         if which in ("bl", "br") and y < 10:
@@ -1062,7 +1075,7 @@ class Grbl:
         if which in ("bl", "br"):
             self.cfg["y_max"] = round(y, 2)
         save_config(self.cfg)
-        self.corner_note = ("The %s arrows were the wrong way round for this table and have been swapped."
+        self.corner_note = ("The %s count was the wrong way round for this table. It has been corrected and the picture turned to match; the arrows still move the same way."
                             % " and ".join(turned)) if turned else None
         names = {"fr": "Front-right", "bl": "Back-left", "br": "Back-right"}
         self.say("%s corner set: bed is now %s x %s mm" % (
@@ -1372,7 +1385,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/config":
             if body.get("zero_corner") in ("bl", "tl", "tr", "br"):
                 g.cfg["zero_corner"] = body["zero_corner"]
-            for k in ("swap_xy", "flip_x", "flip_y"):
+            for k in ("swap_xy", "flip_x", "flip_y", "arrow_rev_x", "arrow_rev_y"):
                 if k in body:
                     g.cfg[k] = bool(body[k])
             if "max_hold_mm" in body:
@@ -1400,6 +1413,15 @@ class Handler(BaseHTTPRequestHandler):
             for k in ("torch_on", "torch_off"):
                 if k in body and re.match(r"^[A-Za-z][A-Za-z0-9 .]{0,29}$", str(body[k]).strip()):
                     g.cfg[k] = str(body[k]).strip().upper()
+            if "jog_feed" in body:
+                try:
+                    v = float(body["jog_feed"])
+                    if math.isfinite(v):
+                        g.cfg["jog_feed"] = max(50, min(v, 50000))
+                except (TypeError, ValueError):
+                    pass
+            if body.get("jog_step") in ("hold", "0.1", "1", "10", "50"):
+                g.cfg["jog_step"] = body["jog_step"]
             if "return_zero" in body:
                 g.cfg["return_zero"] = bool(body["return_zero"])
             if "materials" in body:
